@@ -9,26 +9,14 @@ use tokio;
 struct StreetQuery {
     street: String,
     value: String,
-    from_letter: String,
-    to_letter: String,
 }
 
 impl StreetQuery {
     fn from(node: Node) -> Option<StreetQuery> {
         if let Some(value) = node.attr("value") {
-            let text = node.text();
-            let text = text.trim();
-            let from_char = text.chars().next().unwrap();
-            let to_char = match from_char {
-                'Z' => '[',
-                _ => std::char::from_u32(from_char as u32 + 1).unwrap_or(from_char),
-            };
-
             return Some(StreetQuery {
-                street: text.to_string(),
+                street: node.text().trim().to_string(),
                 value: value.to_string(),
-                from_letter: from_char.to_string(),
-                to_letter: to_char.to_string(),
             });
         }
         None
@@ -79,7 +67,7 @@ impl Client {
         let text = self
             .client
             .post(self.url)
-            .query(&[("von", &query.from_letter), ("bis", &query.to_letter)])
+            .query(&[("von", "A"), ("bis", "[")])
             .form(&data)
             .send()
             .await?
