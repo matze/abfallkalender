@@ -4,7 +4,8 @@ use anyhow::{anyhow, Result};
 use client::{Client, Street};
 use futures::future::join_all;
 use osmpbf::{Element, ElementReader, TagIter};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::fs::File;
@@ -31,7 +32,7 @@ enum Format {
     Csv,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 struct Point {
     lat: f64,
     lon: f64,
@@ -42,9 +43,10 @@ struct StreetIds {
     ids: HashSet<i64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct StreetPoints {
-    street: Street,
+    name: String,
+    date: String,
     points: Vec<Point>,
 }
 
@@ -60,6 +62,19 @@ impl Format {
 
         Err(anyhow!("Unsupported file extension"))
     }
+}
+
+fn distance(x: &Point, y: &Point) -> f64 {
+    let mut tx = x.clone();
+    let mut ty = y.clone();
+    tx.lon -= ty.lon;
+    tx.lon = tx.lon.to_radians();
+    tx.lat = tx.lat.to_radians();
+    ty.lat = ty.lat.to_radians();
+    let dz: f64 = tx.lat.sin() - ty.lat.sin();
+    let dx: f64 = tx.lon.cos() * tx.lat.cos() - ty.lat.cos();
+    let dy: f64 = tx.lon.sin() * tx.lat.cos();
+    ((dx * dx + dy * dy + dz * dz).sqrt() / 2.0).asin() * 2.0 * 6372.8
 }
 
 async fn fetch(output: &Path) -> Result<()> {
@@ -107,10 +122,26 @@ fn get_value(tags: &mut TagIter, key: &str) -> Option<String> {
     None
 }
 
+fn cmp(x: &Point, y: &Point, origin: &Point) -> Ordering {
+    let dx = distance(x, origin);
+    let dy = distance(y, origin);
+
+    if dx <= dy {
+        return Ordering::Less;
+    }
+
+    return Ordering::Greater;
+}
+
 fn ids_to_points(ids: HashSet<i64>, map: &HashMap<i64, Point>) -> Vec<Point> {
-    ids.into_iter()
+    let mut points = ids.into_iter()
         .map(|id| map.get(&id).unwrap().clone())
-        .collect::<Vec<Point>>()
+        .collect::<Vec<Point>>();
+
+    let origin = points[0].clone();
+    points.sort_by(|x, y| cmp(&x, &y, &origin));
+
+    points
 }
 
 fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
@@ -158,7 +189,8 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
     let street_points = street_ids
         .into_iter()
         .map(|(_, v)| StreetPoints {
-            street: v.street,
+            name: v.street.name,
+            date: v.street.date,
             points: ids_to_points(v.ids, &id_points),
         })
         .collect::<Vec<_>>();
