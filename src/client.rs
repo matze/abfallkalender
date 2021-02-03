@@ -4,9 +4,9 @@ use reqwest;
 use select::document::Document;
 use select::node::Node;
 use select::predicate::{Attr, Class, Name, Predicate};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Street {
     pub name: String,
     pub date: String,
