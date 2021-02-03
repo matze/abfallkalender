@@ -1,10 +1,11 @@
 mod client;
 
 use anyhow::{anyhow, Result};
-use client::Client;
+use client::{Client, Street};
+use futures::future::join_all;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tokio;
@@ -48,14 +49,22 @@ async fn fetch(output: &Path) -> Result<()> {
     let mut file = File::create(output)?;
 
     match format {
-        Format::Json => {},
+        Format::Json => {
+            let data: Vec<Street> = join_all(futures)
+                .await
+                .into_iter()
+                .filter_map(Result::ok)
+                .collect();
+
+            serde_json::to_writer(file, &data)?;
+        }
         Format::Csv => {
             for future in futures {
                 if let Ok(street) = future.await {
                     file.write(&format!("{};{}\n", street.name, street.date).as_bytes())?;
                 }
             }
-        },
+        }
     }
 
     Ok(())
