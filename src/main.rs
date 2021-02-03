@@ -25,6 +25,9 @@ enum Commands {
         osm: PathBuf,
         output: PathBuf,
     },
+
+    #[structopt(about = "Render HTML map")]
+    Render { input: PathBuf },
 }
 
 enum Format {
@@ -201,6 +204,17 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
     Ok(())
 }
 
+fn render(input: &Path) -> Result<()> {
+    let streets: Vec<StreetPoints> = serde_json::from_reader(File::open(input)?)?;
+
+    for street in streets {
+        for point in street.points {
+            println!("[{}, {}],", point.lat, point.lon);
+        }
+    }
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     let commands = Commands::from_args();
@@ -208,6 +222,7 @@ async fn main() {
     let result = match commands {
         Commands::Fetch { output } => fetch(&output).await,
         Commands::Process { input, osm, output } => process(&input, &osm, &output),
+        Commands::Render { input } => render(&input),
     };
 
     if let Err(err) = result {
