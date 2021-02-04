@@ -1,7 +1,7 @@
-mod client;
+mod scrape;
 
 use anyhow::{anyhow, Result};
-use client::{Client, Street};
+use scrape::{Client, Street};
 use futures::future::join_all;
 use osmpbf::{Element, ElementReader, TagIter};
 use serde::{Deserialize, Serialize};
