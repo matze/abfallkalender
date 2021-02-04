@@ -5,8 +5,7 @@ use client::{Client, Street};
 use futures::future::join_all;
 use osmpbf::{Element, ElementReader, TagIter};
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
@@ -44,14 +43,14 @@ struct Point {
 #[derive(Serialize, Deserialize)]
 struct StreetIds {
     street: Street,
-    ids: Vec<i64>,
+    segments: Vec<Vec<i64>>,
 }
 
 #[derive(Serialize, Deserialize)]
 struct StreetPoints {
     name: String,
     date: String,
-    points: Vec<Point>,
+    segments: Vec<Vec<Point>>,
 }
 
 impl Format {
@@ -113,10 +112,17 @@ fn get_value(tags: &mut TagIter, key: &str) -> Option<String> {
     None
 }
 
-fn ids_to_points(ids: Vec<i64>, map: &HashMap<i64, Point>) -> Vec<Point> {
+fn convert_segment_ids(ids: Vec<i64>, map: &HashMap<i64, Point>) -> Vec<Point> {
     ids.into_iter()
         .map(|id| map.get(&id).unwrap().clone())
         .collect::<Vec<Point>>()
+}
+
+fn convert_segments(segments: Vec<Vec<i64>>, map: &HashMap<i64, Point>) -> Vec<Vec<Point>> {
+    segments
+        .into_iter()
+        .map(|segment| convert_segment_ids(segment, map))
+        .collect::<Vec<Vec<Point>>>()
 }
 
 fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
@@ -130,7 +136,7 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
             street.name.clone(),
             StreetIds {
                 street: street,
-                ids: Vec::new(),
+                segments: Vec::new(),
             },
         );
     }
@@ -143,11 +149,9 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
                 let name = name.to_uppercase();
 
                 if let Some(value) = street_ids.get_mut(&name) {
-                    if value.ids.len() == 0 {
-                        for id in way.refs() {
-                            value.ids.push(id);
-                        }
-                    }
+                    value
+                        .segments
+                        .push(way.refs().into_iter().collect::<Vec<_>>());
                 }
             }
         }
@@ -168,7 +172,7 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
         .map(|(_, v)| StreetPoints {
             name: v.street.name,
             date: v.street.date,
-            points: ids_to_points(v.ids, &id_points),
+            segments: convert_segments(v.segments, &id_points),
         })
         .collect::<Vec<_>>();
 
@@ -182,8 +186,12 @@ fn render(input: &Path) -> Result<()> {
     let streets: Vec<StreetPoints> = serde_json::from_reader(File::open(input)?)?;
 
     for street in streets {
-        for point in street.points {
-            println!("[{}, {}],", point.lat, point.lon);
+        for segment in street.segments {
+            println!("[");
+            for point in segment {
+                println!("[{}, {}],", point.lat, point.lon);
+            }
+            println!("],");
         }
     }
     Ok(())
