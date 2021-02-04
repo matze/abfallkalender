@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+    <style>
+      #mapid {
+        margin: auto;
+        width: 1000px;
+        height: 600px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="mapid"></div>
+    <script type="text/javascript">
+      var streets = [
+        {%- for street in streets %}
+        {%- if street.segments.len() > 0 -%}
+        {%- raw %} { {% endraw %}
+          date: "{{ street.date }}", name: "{{ street.name }}", segments: [
+            {%- for segment in street.segments %}
+            [{% for point in segment%}[{{ point.lat }}, {{ point.lon }}], {% endfor %}],
+            {%- endfor %}
+          ]
+        {% raw %} }, {% endraw %}
+        {%- endif %}
+        {% endfor %}
+      ];
+      var map = L.map('mapid').setView([49.0, 8.4], 14);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      streets.forEach(street => {
+        street.segments.forEach(segment => {
+          var line = L.polyline(segment, {color: 'red'}).addTo(map);
+          line.bindPopup(street.name + ": " + street.date);
+        });
+      });
+    </script>
+  </body>
+</html>

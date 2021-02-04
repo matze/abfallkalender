@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
+askama = "0"
 futures = "0"
 osmpbf = "0"
 regex = "1"

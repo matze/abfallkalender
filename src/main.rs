@@ -2,8 +2,9 @@ mod geo;
 mod scrape;
 
 use anyhow::{anyhow, Result};
+use askama::Template;
 use futures::future::join_all;
-use geo::{StreetPoints, to_points};
+use geo::{to_points, StreetPoints};
 use scrape::{Client, Street};
 use std::ffi::OsStr;
 use std::fs::File;
@@ -11,6 +12,12 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tokio;
+
+#[derive(Template)]
+#[template(path = "index.html")]
+struct RenderTemplate {
+    streets: Vec<StreetPoints>,
+}
 
 #[derive(StructOpt)]
 enum Commands {
@@ -92,32 +99,10 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
 }
 
 fn render(input: &Path) -> Result<()> {
-    let streets: Vec<StreetPoints> = serde_json::from_reader(File::open(input)?)?;
-
-    println!("var streets = [");
-
-    for street in streets {
-        if street.segments.len() == 0 {
-            continue;
-        }
-
-        println!(
-            r#"{{date: "{}", name: "{}", segments: ["#,
-            street.date, street.name
-        );
-
-        for segment in street.segments {
-            print!("[");
-            for point in segment {
-                print!("[{}, {}],", point.lat, point.lon);
-            }
-            print!("],");
-        }
-
-        println!(r#"]}},"#);
-    }
-
-    println!("];");
+    let template = RenderTemplate {
+        streets: serde_json::from_reader(File::open(input)?)?,
+    };
+    println!("{}", template.render()?);
 
     Ok(())
 }
