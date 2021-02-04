@@ -1,11 +1,10 @@
+mod geo;
 mod scrape;
 
 use anyhow::{anyhow, Result};
-use scrape::{Client, Street};
 use futures::future::join_all;
-use osmpbf::{Element, ElementReader, TagIter};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use geo::{StreetPoints, to_points};
+use scrape::{Client, Street};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
@@ -32,25 +31,6 @@ enum Commands {
 enum Format {
     Json,
     Csv,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-struct Point {
-    lat: f64,
-    lon: f64,
-}
-
-#[derive(Serialize, Deserialize)]
-struct StreetIds {
-    street: Street,
-    segments: Vec<Vec<i64>>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct StreetPoints {
-    name: String,
-    date: String,
-    segments: Vec<Vec<Point>>,
 }
 
 impl Format {
@@ -102,80 +82,9 @@ async fn fetch(output: &Path) -> Result<()> {
     Ok(())
 }
 
-fn get_value(tags: &mut TagIter, key: &str) -> Option<String> {
-    for (k, v) in tags {
-        if k == key {
-            return Some(v.to_owned());
-        }
-    }
-
-    None
-}
-
-fn convert_segment_ids(ids: Vec<i64>, map: &HashMap<i64, Point>) -> Vec<Point> {
-    ids.into_iter()
-        .map(|id| map.get(&id).unwrap().clone())
-        .collect::<Vec<Point>>()
-}
-
-fn convert_segments(segments: Vec<Vec<i64>>, map: &HashMap<i64, Point>) -> Vec<Vec<Point>> {
-    segments
-        .into_iter()
-        .map(|segment| convert_segment_ids(segment, map))
-        .collect::<Vec<Vec<Point>>>()
-}
-
 fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
     let streets: Vec<Street> = serde_json::from_reader(File::open(input)?)?;
-
-    let mut street_ids: HashMap<String, StreetIds> = HashMap::new();
-    let mut id_points: HashMap<i64, Point> = HashMap::new();
-
-    for street in streets {
-        street_ids.insert(
-            street.name.clone(),
-            StreetIds {
-                street: street,
-                segments: Vec::new(),
-            },
-        );
-    }
-
-    let reader = ElementReader::from_path(osm)?;
-
-    reader.for_each(|element| match element {
-        Element::Way(way) => {
-            if let Some(name) = get_value(&mut way.tags(), "name") {
-                let name = name.to_uppercase();
-
-                if let Some(value) = street_ids.get_mut(&name) {
-                    value
-                        .segments
-                        .push(way.refs().into_iter().collect::<Vec<_>>());
-                }
-            }
-        }
-        Element::DenseNode(node) => {
-            id_points.insert(
-                node.id,
-                Point {
-                    lat: node.lat(),
-                    lon: node.lon(),
-                },
-            );
-        }
-        _ => {}
-    })?;
-
-    let street_points = street_ids
-        .into_iter()
-        .map(|(_, v)| StreetPoints {
-            name: v.street.name,
-            date: v.street.date,
-            segments: convert_segments(v.segments, &id_points),
-        })
-        .collect::<Vec<_>>();
-
+    let street_points = to_points(osm, streets)?;
     let file = File::create(output)?;
     serde_json::to_writer(file, &street_points)?;
 
@@ -192,7 +101,10 @@ fn render(input: &Path) -> Result<()> {
             continue;
         }
 
-        println!(r#"{{date: "{}", name: "{}", segments: ["#, street.date, street.name);
+        println!(
+            r#"{{date: "{}", name: "{}", segments: ["#,
+            street.date, street.name
+        );
 
         for segment in street.segments {
             print!("[");
