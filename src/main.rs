@@ -185,15 +185,28 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
 fn render(input: &Path) -> Result<()> {
     let streets: Vec<StreetPoints> = serde_json::from_reader(File::open(input)?)?;
 
+    println!("var streets = [");
+
     for street in streets {
-        for segment in street.segments {
-            println!("[");
-            for point in segment {
-                println!("[{}, {}],", point.lat, point.lon);
-            }
-            println!("],");
+        if street.segments.len() == 0 {
+            continue;
         }
+
+        println!(r#"{{date: "{}", name: "{}", segments: ["#, street.date, street.name);
+
+        for segment in street.segments {
+            print!("[");
+            for point in segment {
+                print!("[{}, {}],", point.lat, point.lon);
+            }
+            print!("],");
+        }
+
+        println!(r#"]}},"#);
     }
+
+    println!("];");
+
     Ok(())
 }
 
