@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8">
+    <title>Sperrmüllkalender 2021</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
     <link rel="stylesheet" href="https://unpkg.com/vue-range-component@1.0.3/dist/vue-range-slider.min.css">
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
@@ -46,6 +47,7 @@
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
 
+      const color = "#F7497E"
       const start = Date.parse("2021-01-01");
       const end = Date.parse("2021-12-31");
       const step = 24 * 60 * 60 * 1000;
@@ -57,8 +59,8 @@
       streets.forEach(street => {
         if (street.date >= start && street.date <= end) {
           street.segments.forEach(segment => {
-            var line = L.polyline(segment, {color: 'red'}).addTo(active)
-            line.bindPopup(street.name + ": " + Date(street.date).toString())
+            var line = L.polyline(segment, {color: color}).addTo(active)
+            line.bindPopup(street.name + " • " + Date(street.date).toString())
           });
         }
       });
@@ -91,8 +93,8 @@
             streets.forEach(street => {
               if (street.date >= start && street.date <= end) {
                 street.segments.forEach(segment => {
-                  var line = L.polyline(segment, {color: 'red'}).addTo(active)
-                  line.bindPopup(street.name + ": " + Date(street.date).toString())
+                  var line = L.polyline(segment, {color: color}).addTo(active)
+                  line.bindPopup(street.name + " • " + Date(street.date).toString())
                 });
               }
             });
