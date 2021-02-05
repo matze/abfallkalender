@@ -3,17 +3,29 @@
   <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/vue-range-component@1.0.3/dist/vue-range-slider.min.css">
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <script src="https://unpkg.com/vue-range-component@1.0.3/dist/vue-range-slider.min.js"></script>
     <style>
       #mapid {
         margin: auto;
-        width: 1000px;
-        height: 600px;
+        width: 100%;
+        height: 1200px;
+      }
+
+      .app-content {
+        padding: 40px 15px;
       }
     </style>
   </head>
   <body>
     <div id="mapid"></div>
+    <div id="app">
+      <div class="app-content">
+        <vue-range-slider v-model="value" v-on:drag-end="new_range" :min="min" :max="max" :formatter="formatter" :tooltip-merge="tooltipMerge" :enable-cross="enableCross"></vue-range-slider>
+      </div>
+    </div>
     <script type="text/javascript">
       var streets = [
         {%- for street in streets %}
@@ -34,12 +46,59 @@
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
 
+      const start = Date.parse("2021-01-01");
+      const end = Date.parse("2021-12-31");
+      const step = 24 * 60 * 60 * 1000;
+
+      var active = L.featureGroup().addTo(map);
+
+      dateOptions = { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+
       streets.forEach(street => {
-        street.segments.forEach(segment => {
-          var line = L.polyline(segment, {color: 'red'}).addTo(map);
-          line.bindPopup(street.name + ": " + street.date);
-        });
+        if (street.date >= start && street.date <= end) {
+          street.segments.forEach(segment => {
+            var line = L.polyline(segment, {color: 'red'}).addTo(active)
+            line.bindPopup(street.name + ": " + Date(street.date).toString())
+          });
+        }
       });
+
+      new Vue({
+        data() {
+          return {
+            value: [Date.now(), end]
+          }
+        },
+        created() {
+          this.min = start
+          this.max = end
+          this.step = step
+          this.enableCross = false
+          this.tooltipMerge = false
+          this.tooltipDir = ["bottom"]
+          this.formatter = value => {
+            const d = new Date(parseInt(`${value}`));
+            return d.toLocaleDateString();
+          }
+        },
+        methods: {
+          new_range: function (foo) {
+            active.clearLayers()
+
+            const start = this.value[0]
+            const end = this.value[1]
+
+            streets.forEach(street => {
+              if (street.date >= start && street.date <= end) {
+                street.segments.forEach(segment => {
+                  var line = L.polyline(segment, {color: 'red'}).addTo(active)
+                  line.bindPopup(street.name + ": " + Date(street.date).toString())
+                });
+              }
+            });
+          }
+        },
+      }).$mount('#app')
     </script>
   </body>
 </html>
