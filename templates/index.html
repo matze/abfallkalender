@@ -19,7 +19,7 @@
         {%- for street in streets %}
         {%- if street.segments.len() > 0 -%}
         {%- raw %} { {% endraw %}
-          date: "{{ street.date }}", name: "{{ street.name }}", segments: [
+          date: {{ street.date }}, name: "{{ street.name }}", segments: [
             {%- for segment in street.segments %}
             [{% for point in segment%}[{{ point.lat }}, {{ point.lon }}], {% endfor %}],
             {%- endfor %}

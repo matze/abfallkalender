@@ -3,8 +3,9 @@ mod scrape;
 
 use anyhow::{anyhow, Result};
 use askama::Template;
+use chrono::NaiveDate;
 use futures::future::join_all;
-use geo::{to_points, StreetPoints};
+use geo::{to_points, Point, StreetPoints};
 use scrape::{Client, Street};
 use std::ffi::OsStr;
 use std::fs::File;
@@ -13,10 +14,16 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tokio;
 
+struct Foo {
+    pub name: String,
+    pub date: i64,
+    segments: Vec<Vec<Point>>,
+}
+
 #[derive(Template)]
 #[template(path = "index.html")]
 struct RenderTemplate {
-    streets: Vec<StreetPoints>,
+    streets: Vec<Foo>,
 }
 
 #[derive(StructOpt)]
@@ -98,10 +105,26 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
     Ok(())
 }
 
+fn to_timestamp(date: String) -> i64 {
+    NaiveDate::parse_from_str(&date, "%d.%m.%Y")
+        .unwrap() // yeah ...
+        .and_hms(0, 0, 0)
+        .timestamp_millis()
+}
+
 fn render(input: &Path) -> Result<()> {
-    let template = RenderTemplate {
-        streets: serde_json::from_reader(File::open(input)?)?,
-    };
+    let streets: Vec<StreetPoints> = serde_json::from_reader(File::open(input)?)?;
+
+    let streets = streets
+        .into_iter()
+        .map(|s| Foo {
+            name: s.name,
+            date: to_timestamp(s.date),
+            segments: s.segments,
+        })
+        .collect::<Vec<_>>();
+
+    let template = RenderTemplate { streets: streets };
     println!("{}", template.render()?);
 
     Ok(())
