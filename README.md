@@ -1,5 +1,13 @@
 ## Scraper und Renderer für den Karlsruher Abfallkalender
 
+
+### Kalender
+
+<a href="https://matze.github.io/abfallkalender" rel="Hier klicken für den Kalender"><img src="https://matze.github.io/abfallkalender/image.png"/></a>
+
+
+### Bauen
+
 Rust installieren, dann
 
 1. Sperrmülldaten scrapen mit `cargo r --release fetch dates.json`
