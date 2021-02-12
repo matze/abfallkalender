@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use regex::Regex;
-use reqwest;
 use select::document::Document;
 use select::node::Node;
 use select::predicate::{Attr, Class, Name, Predicate};
@@ -59,7 +58,7 @@ impl Client {
         Ok(document
             .find(Class("tab_body").descendant(Name("option")))
             .into_iter()
-            .filter_map(|node| Query::from(node))
+            .filter_map(Query::from)
             .collect::<Vec<_>>())
     }
 
@@ -83,22 +82,21 @@ impl Client {
         let node = Document::from(text.as_str())
             .find(Attr("id", "foo").descendant(Name("tbody")))
             .next()
-            .ok_or(anyhow!("<div id='foo'><tbody> not found"))?
+            .ok_or_else(|| anyhow!("<div id='foo'><tbody> not found"))?
             .last_child() // last <tr>
-            .ok_or(anyhow!("<tr> not found"))?
+            .ok_or_else(|| anyhow!("<tr> not found"))?
             .find(Name("td"))
-            .skip(2)
-            .next()
-            .ok_or(anyhow!("third <td> not found"))?
+            .nth(2)
+            .ok_or_else(|| anyhow!("third <td> not found"))?
             .text();
 
         Ok(Street {
             date: self
                 .date_expr
                 .captures(&node)
-                .ok_or(anyhow!("No date found for {}", query.street))?
+                .ok_or_else(|| anyhow!("No date found for {}", query.street))?
                 .get(0)
-                .ok_or(anyhow!("foo"))?
+                .ok_or_else(|| anyhow!("foo"))?
                 .as_str()
                 .to_owned(),
             name: query.street,

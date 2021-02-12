@@ -58,7 +58,7 @@ fn convert_segment_ids(ids: Vec<i64>, map: &HashMap<i64, Point>) -> Vec<Point> {
         .collect::<Vec<Point>>()
 }
 
-fn valid_segment(segment: &Vec<i64>, map: &HashMap<i64, Point>) -> bool {
+fn valid_segment(segment: &[i64], map: &HashMap<i64, Point>) -> bool {
     if let Some(first) = segment.get(0) {
         return distance(map.get(first).unwrap(), &ORIGIN) < 10.0f64;
     }
@@ -82,7 +82,7 @@ pub fn to_points(osm: &Path, streets: Vec<Street>) -> Result<Vec<StreetPoints>> 
         street_ids.insert(
             street.name.clone(),
             StreetIds {
-                street: street,
+                street,
                 segments: Vec::new(),
             },
         );

@@ -12,7 +12,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
-use tokio;
 
 struct Foo {
     pub name: String,
@@ -62,7 +61,7 @@ impl Format {
 }
 
 async fn fetch(output: &Path) -> Result<()> {
-    let extension = output.extension().ok_or(anyhow!("No file extension"))?;
+    let extension = output.extension().ok_or_else(|| anyhow!("No file extension"))?;
     let format = Format::from(extension)?;
     let client = Client::new()?;
 
@@ -87,7 +86,7 @@ async fn fetch(output: &Path) -> Result<()> {
         Format::Csv => {
             for future in futures {
                 if let Ok(street) = future.await {
-                    file.write(&format!("{};{}\n", street.name, street.date).as_bytes())?;
+                    file.write_all(&format!("{};{}\n", street.name, street.date).as_bytes())?;
                 }
             }
         }
@@ -124,7 +123,7 @@ fn render(input: &Path) -> Result<()> {
         })
         .collect::<Vec<_>>();
 
-    let template = RenderTemplate { streets: streets };
+    let template = RenderTemplate { streets };
     println!("{}", template.render()?);
 
     Ok(())
