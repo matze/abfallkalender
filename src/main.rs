@@ -19,6 +19,16 @@ struct Foo {
     segments: Vec<Vec<Point>>,
 }
 
+impl Foo {
+    fn from(point: StreetPoints) -> Result<Self> {
+        let date = NaiveDate::parse_from_str(&point.date, "%d.%m.%Y")?
+            .and_hms(0, 0, 0)
+            .timestamp_millis();
+
+        Ok(Self { name: point.name, date, segments: point.segments })
+    }
+}
+
 #[derive(Template)]
 #[template(path = "index.html")]
 struct RenderTemplate {
@@ -61,7 +71,9 @@ impl Format {
 }
 
 async fn fetch(output: &Path) -> Result<()> {
-    let extension = output.extension().ok_or_else(|| anyhow!("No file extension"))?;
+    let extension = output
+        .extension()
+        .ok_or_else(|| anyhow!("No file extension"))?;
     let format = Format::from(extension)?;
     let client = Client::new()?;
 
@@ -104,24 +116,13 @@ fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
     Ok(())
 }
 
-fn to_timestamp(date: String) -> i64 {
-    NaiveDate::parse_from_str(&date, "%d.%m.%Y")
-        .unwrap() // yeah ...
-        .and_hms(0, 0, 0)
-        .timestamp_millis()
-}
-
 fn render(input: &Path) -> Result<()> {
     let streets: Vec<StreetPoints> = serde_json::from_reader(File::open(input)?)?;
 
     let streets = streets
         .into_iter()
-        .map(|s| Foo {
-            name: s.name,
-            date: to_timestamp(s.date),
-            segments: s.segments,
-        })
-        .collect::<Vec<_>>();
+        .map(Foo::from)
+        .collect::<Result<Vec<_>>>()?;
 
     let template = RenderTemplate { streets };
     println!("{}", template.render()?);
