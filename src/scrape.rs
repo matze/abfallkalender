@@ -6,8 +6,8 @@ use select::predicate::{Attr, Class, Name, Predicate};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Street {
-    pub name: String,
+pub struct Pickup {
+    pub street: String,
     pub date: String,
 }
 
@@ -62,7 +62,7 @@ impl Client {
             .collect::<Vec<_>>())
     }
 
-    pub async fn get_date(&self, query: Query) -> Result<Street> {
+    pub async fn get_pickup(&self, query: Query) -> Result<Pickup> {
         let data = [
             ("anzeigen", "anzeigen"),
             ("strasse", &query.value),
@@ -90,7 +90,7 @@ impl Client {
             .ok_or_else(|| anyhow!("third <td> not found"))?
             .text();
 
-        Ok(Street {
+        Ok(Pickup {
             date: self
                 .date_expr
                 .captures(&node)
@@ -99,7 +99,7 @@ impl Client {
                 .ok_or_else(|| anyhow!("foo"))?
                 .as_str()
                 .to_owned(),
-            name: query.street,
+            street: query.street,
         })
     }
 }

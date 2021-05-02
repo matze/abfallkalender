@@ -28,12 +28,12 @@
       </div>
     </div>
     <script type="text/javascript">
-      var streets = [
-        {%- for street in streets %}
-        {%- if street.segments.len() > 0 -%}
+      var pickups = [
+        {%- for pickup in pickups %}
+        {%- if pickup.segments.len() > 0 -%}
         {%- raw %} { {% endraw %}
-          date: {{ street.date }}, name: "{{ street.name }}", segments: [
-            {%- for segment in street.segments %}
+          date: {{ pickup.date }}, street: "{{ pickup.street }}", segments: [
+            {%- for segment in pickup.segments %}
             [{% for point in segment%}[{{ point.lat }}, {{ point.lon }}], {% endfor %}],
             {%- endfor %}
           ]
@@ -45,11 +45,11 @@
       const color = "#F7497E"
 
       function update(start, end, container) {
-        streets.forEach(street => {
-          if (street.date >= start && street.date <= end) {
-            street.segments.forEach(segment => {
+        pickups.forEach(pickup => {
+          if (pickup.date >= start && pickup.date <= end) {
+            pickup.segments.forEach(segment => {
               var line = L.polyline(segment, {color: color}).addTo(container)
-              line.bindPopup(street.name + " • " + Date(street.date).toString())
+              line.bindPopup(pickup.street + " • " + Date(street.date).toString())
             })
           }
         })

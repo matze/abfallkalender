@@ -1,4 +1,4 @@
-use crate::scrape::Street;
+use crate::scrape;
 use anyhow::Result;
 use osmpbf::{Element, ElementReader, TagIter};
 use serde::{Deserialize, Serialize};
@@ -18,13 +18,13 @@ const ORIGIN: Point = Point {
 
 #[derive(Serialize, Deserialize)]
 struct StreetIds {
-    street: Street,
+    pickup: scrape::Pickup,
     segments: Vec<Vec<i64>>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct StreetPoints {
-    pub name: String,
+pub struct Pickup {
+    pub street: String,
     pub date: String,
     pub segments: Vec<Vec<Point>>,
 }
@@ -74,15 +74,15 @@ fn convert_segments(segments: Vec<Vec<i64>>, map: &HashMap<i64, Point>) -> Vec<V
         .collect::<Vec<Vec<Point>>>()
 }
 
-pub fn to_points(osm: &Path, streets: Vec<Street>) -> Result<Vec<StreetPoints>> {
+pub fn convert(osm: &Path, pickups: Vec<scrape::Pickup>) -> Result<Vec<Pickup>> {
     let mut street_ids: HashMap<String, StreetIds> = HashMap::new();
     let mut id_points: HashMap<i64, Point> = HashMap::new();
 
-    for street in streets {
+    for pickup in pickups {
         street_ids.insert(
-            street.name.clone(),
+            pickup.street.clone(),
             StreetIds {
-                street,
+                pickup,
                 segments: Vec::new(),
             },
         );
@@ -116,9 +116,9 @@ pub fn to_points(osm: &Path, streets: Vec<Street>) -> Result<Vec<StreetPoints>> 
 
     Ok(street_ids
         .into_iter()
-        .map(|(_, v)| StreetPoints {
-            name: v.street.name,
-            date: v.street.date,
+        .map(|(_, v)| Pickup {
+            street: v.pickup.street,
+            date: v.pickup.date,
             segments: convert_segments(v.segments, &id_points),
         })
         .collect::<Vec<_>>())

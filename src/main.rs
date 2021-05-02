@@ -5,34 +5,37 @@ use anyhow::{anyhow, Result};
 use askama::Template;
 use chrono::NaiveDate;
 use futures::future::join_all;
-use geo::{to_points, Point, StreetPoints};
-use scrape::{Client, Street};
+use scrape::Client;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
-struct Foo {
-    pub name: String,
+struct Pickup {
+    pub street: String,
     pub date: i64,
-    segments: Vec<Vec<Point>>,
+    segments: Vec<Vec<geo::Point>>,
 }
 
-impl Foo {
-    fn from(point: StreetPoints) -> Result<Self> {
-        let date = NaiveDate::parse_from_str(&point.date, "%d.%m.%Y")?
+impl Pickup {
+    fn from(pickup: geo::Pickup) -> Result<Self> {
+        let date = NaiveDate::parse_from_str(&pickup.date, "%d.%m.%Y")?
             .and_hms(0, 0, 0)
             .timestamp_millis();
 
-        Ok(Self { name: point.name, date, segments: point.segments })
+        Ok(Self {
+            street: pickup.street,
+            date,
+            segments: pickup.segments,
+        })
     }
 }
 
 #[derive(Template)]
 #[template(path = "index.html")]
 struct RenderTemplate {
-    streets: Vec<Foo>,
+    pickups: Vec<Pickup>,
 }
 
 #[derive(StructOpt)]
@@ -81,13 +84,13 @@ async fn fetch(output: &Path) -> Result<()> {
         .queries()
         .await?
         .into_iter()
-        .map(|q| client.get_date(q));
+        .map(|q| client.get_pickup(q));
 
     let mut file = File::create(output)?;
 
     match format {
         Format::Json => {
-            let data: Vec<Street> = join_all(futures)
+            let data: Vec<scrape::Pickup> = join_all(futures)
                 .await
                 .into_iter()
                 .filter_map(Result::ok)
@@ -97,8 +100,8 @@ async fn fetch(output: &Path) -> Result<()> {
         }
         Format::Csv => {
             for future in futures {
-                if let Ok(street) = future.await {
-                    file.write_all(&format!("{};{}\n", street.name, street.date).as_bytes())?;
+                if let Ok(pickup) = future.await {
+                    file.write_all(&format!("{};{}\n", pickup.street, pickup.date).as_bytes())?;
                 }
             }
         }
@@ -108,23 +111,23 @@ async fn fetch(output: &Path) -> Result<()> {
 }
 
 fn process(input: &Path, osm: &Path, output: &Path) -> Result<()> {
-    let streets: Vec<Street> = serde_json::from_reader(File::open(input)?)?;
-    let street_points = to_points(osm, streets)?;
+    let pickups: Vec<scrape::Pickup> = serde_json::from_reader(File::open(input)?)?;
+    let pickups = geo::convert(osm, pickups)?;
     let file = File::create(output)?;
-    serde_json::to_writer(file, &street_points)?;
+    serde_json::to_writer(file, &pickups)?;
 
     Ok(())
 }
 
 fn render(input: &Path) -> Result<()> {
-    let streets: Vec<StreetPoints> = serde_json::from_reader(File::open(input)?)?;
+    let pickups: Vec<geo::Pickup> = serde_json::from_reader(File::open(input)?)?;
 
-    let streets = streets
+    let pickups = pickups
         .into_iter()
-        .map(Foo::from)
+        .map(Pickup::from)
         .collect::<Result<Vec<_>>>()?;
 
-    let template = RenderTemplate { streets };
+    let template = RenderTemplate { pickups };
     println!("{}", template.render()?);
 
     Ok(())
