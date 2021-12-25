@@ -11,6 +11,7 @@ pub struct Pickup {
     pub date: String,
 }
 
+#[derive(Debug)]
 pub struct Query {
     pub street: String,
     pub value: String,
@@ -39,7 +40,7 @@ impl Client {
         Ok(Self {
             client: reqwest::Client::new(),
             url: "https://web6.karlsruhe.de/service/abfall/akal/akal.php",
-            date_expr: Regex::new(r"(\d\d\.\d\d\.2021)")?,
+            date_expr: Regex::new(r"(\d\d\.\d\d\.2022)")?,
         })
     }
 
@@ -66,7 +67,7 @@ impl Client {
         let data = [
             ("anzeigen", "anzeigen"),
             ("strasse", &query.value),
-            ("hausnr", ""),
+            ("hausnr", "1"),
         ];
 
         let text = self

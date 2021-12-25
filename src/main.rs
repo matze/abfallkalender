@@ -6,6 +6,7 @@ use askama::Template;
 use chrono::NaiveDate;
 use futures::future::join_all;
 use scrape::Client;
+use std::convert::TryFrom;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
@@ -54,13 +55,16 @@ enum Commands {
     Render { input: PathBuf },
 }
 
+#[derive(Debug)]
 enum Format {
     Json,
     Csv,
 }
 
-impl Format {
-    fn from(extension: &OsStr) -> Result<Self> {
+impl TryFrom<&OsStr> for Format {
+    type Error = anyhow::Error;
+
+    fn try_from(extension: &OsStr) -> Result<Self> {
         if extension == "json" {
             return Ok(Format::Json);
         }
@@ -77,7 +81,7 @@ async fn fetch(output: &Path) -> Result<()> {
     let extension = output
         .extension()
         .ok_or_else(|| anyhow!("No file extension"))?;
-    let format = Format::from(extension)?;
+    let format = Format::try_from(extension)?;
     let client = Client::new()?;
 
     let futures = client
