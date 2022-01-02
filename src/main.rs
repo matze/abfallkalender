@@ -3,6 +3,7 @@ mod scrape;
 
 use anyhow::{anyhow, Result};
 use askama::Template;
+use clap::Parser;
 use chrono::NaiveDate;
 use futures::future::join_all;
 use scrape::Client;
@@ -11,7 +12,6 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
 
 struct Pickup {
     pub street: String,
@@ -39,19 +39,19 @@ struct RenderTemplate {
     pickups: Vec<Pickup>,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum Commands {
-    #[structopt(about = "Fetch dates")]
+    #[clap(about = "Fetch dates")]
     Fetch { output: PathBuf },
 
-    #[structopt(about = "Compute coordinates for all streets")]
+    #[clap(about = "Compute coordinates for all streets")]
     Process {
         input: PathBuf,
         osm: PathBuf,
         output: PathBuf,
     },
 
-    #[structopt(about = "Render HTML map")]
+    #[clap(about = "Render HTML map")]
     Render { input: PathBuf },
 }
 
@@ -139,7 +139,7 @@ fn render(input: &Path) -> Result<()> {
 
 #[tokio::main]
 async fn main() {
-    let commands = Commands::from_args();
+    let commands = Commands::parse();
 
     let result = match commands {
         Commands::Fetch { output } => fetch(&output).await,
